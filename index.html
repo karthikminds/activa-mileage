@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fb">
+<meta name="color-scheme" content="light dark">
+<title>Activa Mileage</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  /* Light theme is the default; dark only when chosen in Settings (or "Auto" with a dark phone). */
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1d2240; --muted: #6b7194; --line: #e7e9f3; --field: #f3f4fa;
+    --accent: #6d5dfc; --accent-soft: #eeebff;
+    --grad: linear-gradient(135deg, #6d5dfc 0%, #a855f7 55%, #f472b6 100%);
+    --teal: #0d9488; --teal-soft: #dcf7f3; --orange: #ea6a0c; --orange-soft: #ffeedd;
+    --blue: #2f6bf0; --blue-soft: #e3ecff; --pink: #db2777; --pink-soft: #fde4f1;
+    --danger: #e11d48; --danger-soft: #ffe8ee; --warn: #b45309; --warn-soft: #fff4dc;
+    --ok: #0f9d58; --ok-soft: #e1f6ea;
+    --shadow: 0 1px 2px rgba(29,34,64,.05), 0 6px 20px rgba(29,34,64,.07);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1020; --card: #1a1b30; --text: #eceaff; --muted: #a3a4c6; --line: #2b2c48; --field: #23243d;
+    --accent: #8b7dff; --accent-soft: #2a2652;
+    --teal: #4fd1c5; --teal-soft: #15302f; --orange: #fb9a4b; --orange-soft: #3a2616;
+    --blue: #7ea2ff; --blue-soft: #1b2645; --pink: #f582b8; --pink-soft: #3a1c2d;
+    --danger: #ff6b8a; --danger-soft: #3d1724; --warn: #fbbf24; --warn-soft: #3a2e10;
+    --ok: #4ade80; --ok-soft: #13301f;
+    --shadow: none; color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="auto"] {
+      --bg: #0f1020; --card: #1a1b30; --text: #eceaff; --muted: #a3a4c6; --line: #2b2c48; --field: #23243d;
+      --accent: #8b7dff; --accent-soft: #2a2652;
+      --teal: #4fd1c5; --teal-soft: #15302f; --orange: #fb9a4b; --orange-soft: #3a2616;
+      --blue: #7ea2ff; --blue-soft: #1b2645; --pink: #f582b8; --pink-soft: #3a1c2d;
+      --danger: #ff6b8a; --danger-soft: #3d1724; --warn: #fbbf24; --warn-soft: #3a2e10;
+      --ok: #4ade80; --ok-soft: #13301f;
+      --shadow: none; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  button, input, select { font: inherit; color: inherit; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+  /* Header */
+  header { padding: max(16px, env(safe-area-inset-top)) 0 4px; }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  header .hello { font-size: 13px; color: var(--muted); }
+  header .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .plate { display: inline-flex; align-items: stretch; font: 700 12px/1 ui-monospace, "Roboto Mono", Consolas, monospace; letter-spacing: .06em; background: #fff; color: #111; border: 1.5px solid #222; border-radius: 6px; overflow: hidden; vertical-align: middle; }
+  .plate i { font-style: normal; background: #1f4fbf; color: #fff; font-size: 8px; padding: 0 3px; display: grid; place-items: center; letter-spacing: 0; }
+  .plate b { padding: 4px 7px; }
+  .icon-btn { width: 42px; height: 42px; border-radius: 14px; border: 0; background: var(--card); box-shadow: var(--shadow); display: grid; place-items: center; cursor: pointer; font-size: 18px; flex: none; }
+
+  .page-title { margin: 18px 0 0; font-size: 20px; letter-spacing: -.01em; }
+  .card { background: var(--card); border-radius: 22px; box-shadow: var(--shadow); padding: 16px; margin-top: 14px; }
+  .card h2, .sec-head h2 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .link { border: 0; background: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; padding: 0; }
+
+  /* Hero gauge on gradient */
+  .hero { background: var(--grad); color: #fff; text-align: center; padding: 18px 16px 16px; position: relative; overflow: hidden; }
+  .hero::before, .hero::after { content: ""; position: absolute; border-radius: 50%; background: rgba(255,255,255,.10); }
+  .hero::before { width: 180px; height: 180px; top: -70px; right: -50px; }
+  .hero::after { width: 120px; height: 120px; bottom: -60px; left: -30px; }
+  .hero svg { width: 220px; max-width: 78%; display: block; margin: 0 auto; position: relative; }
+  .hero .val { font-size: 46px; font-weight: 800; letter-spacing: -.02em; margin-top: -80px; font-variant-numeric: tabular-nums; position: relative; }
+  .hero .unit { font-size: 13px; opacity: .85; margin-top: -4px; position: relative; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; position: relative; }
+  .pills span { font-size: 12.5px; background: rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px; }
+
+  /* Alerts */
+  .alert { display: flex; align-items: center; gap: 10px; border-radius: 16px; padding: 11px 14px; margin-top: 10px; font-size: 13.5px; cursor: pointer; }
+  .alert b { display: block; font-size: 14px; }
+  .alert .ai { font-size: 18px; }
+  .alert.danger { background: var(--danger-soft); color: var(--danger); }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .alert span:last-child { margin-left: auto; font-weight: 700; }
+
+  /* Insights */
+  .ins { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+  .ins:first-of-type { border-top: 0; padding-top: 2px; }
+  .ins b { display: block; font-size: 14px; }
+  .ins small { color: var(--muted); font-size: 12.5px; }
+
+  /* Stat cards */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .stat { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 14px; }
+  .stat .top { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .chip { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 15px; flex: none; }
+  .stat .v { font-size: 22px; font-weight: 800; margin-top: 8px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .stat .s { font-size: 11px; color: var(--muted); }
+  .teal { background: var(--teal-soft); } .orange { background: var(--orange-soft); }
+  .blue { background: var(--blue-soft); } .pink { background: var(--pink-soft); }
+  .danger-c { background: var(--danger-soft); } .violet { background: var(--accent-soft); }
+
+  /* Progress bars (service) */
+  .rem { padding: 8px 0; }
+  .rem + .rem { border-top: 1px solid var(--line); }
+  .rem .row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+  .rem .row b { font-weight: 700; }
+  .rem .row span { font-size: 12.5px; font-weight: 700; }
+  .rem small { color: var(--muted); font-size: 12px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--field); margin: 6px 0 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
+  .lv-ok { color: var(--ok); } .lv-warn { color: var(--warn); } .lv-danger { color: var(--danger); } .lv-none { color: var(--muted); }
+  .bg-ok { background: var(--ok); } .bg-warn { background: #f59e0b; } .bg-danger { background: var(--danger); }
+
+  /* Documents */
+  .docs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .doc { background: var(--field); border-radius: 14px; padding: 10px 12px; cursor: pointer; }
+  .doc b { font-size: 13.5px; display: block; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 99px; padding: 2px 8px; margin-top: 4px; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.danger { background: var(--danger-soft); color: var(--danger); } .pill.none { background: var(--card); color: var(--muted); }
+
+  canvas.chart { width: 100%; height: 150px; display: block; }
+  canvas.chart.tall { height: 190px; }
+  .empty { color: var(--muted); text-align: center; padding: 18px 8px; font-size: 14px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  /* Lists */
+  .entry { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .entry:first-child, .month-h + .entry { border-top: 0; }
+  .thumb { width: 50px; height: 50px; border-radius: 14px; object-fit: cover; background: var(--accent-soft); flex: none; display: grid; place-items: center; font-size: 20px; }
+  .entry .mid { flex: 1; min-width: 0; }
+  .entry .d { font-weight: 700; }
+  .entry .m { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .r { font-weight: 800; color: var(--accent); text-align: right; white-space: nowrap; }
+  .entry .r small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+  .tag { font-size: 10px; font-weight: 700; background: var(--orange-soft); color: var(--orange); border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+  .month-h { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 14px 0 6px; }
+  .month-h:first-child { padding-top: 0; }
+
+  /* Reports */
+  .big-num { font-size: 32px; font-weight: 800; letter-spacing: -.02em; }
+  .stack { display: flex; height: 12px; border-radius: 99px; overflow: hidden; margin: 10px 0; background: var(--field); }
+  .stack i { display: block; height: 100%; }
+  .brk { display: flex; justify-content: space-between; font-size: 13.5px; padding: 5px 0; }
+  .brk span:first-child i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; }
+  .bunk { padding: 8px 0; }
+  .bunk + .bunk { border-top: 1px solid var(--line); }
+  .bunk .row { display: flex; justify-content: space-between; font-size: 14px; gap: 8px; }
+  .bunk small { color: var(--muted); font-size: 12px; }
+  .bunk .bar i { background: var(--grad); }
+  #sumCanvas { width: 100%; max-width: 300px; display: block; margin: 12px auto; border-radius: 16px; box-shadow: var(--shadow); }
+  select.sel { background: var(--field); border: 0; border-radius: 10px; padding: 8px 10px; }
+
+  /* Tab bar */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--card); box-shadow: 0 -4px 24px rgba(29,34,64,.08); border-top: 1px solid var(--line); padding: 6px 8px max(6px, env(safe-area-inset-bottom)); }
+  .tabbar .in { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; }
+  .tabbar button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 0; cursor: pointer; }
+  .tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tabbar button.on { color: var(--accent); }
+  .tabbar .add { width: 58px; height: 58px; margin: -26px auto 0; border-radius: 20px; background: var(--grad); color: #fff; font-size: 30px; font-weight: 400; line-height: 1; justify-content: center; box-shadow: 0 10px 24px rgba(109,93,252,.40); padding: 0; }
+
+  /* Sheets */
+  dialog { border: 0; padding: 0; background: var(--card); color: var(--text); width: 100%; max-width: 560px; max-height: 100dvh; margin: auto auto 0; border-radius: 24px 24px 0 0; }
+  dialog::backdrop { background: rgba(20,22,45,.5); }
+  @media (min-width: 600px) { dialog { margin: auto; border-radius: 24px; max-height: 92dvh; } }
+  .sheet-head { position: sticky; top: 0; background: var(--card); z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  .sheet-head h3 { margin: 0; font-size: 17px; }
+  .sheet-body { padding: 16px; }
+  .close { border: 0; background: var(--field); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; font-size: 16px; }
+
+  .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .add-opt { border: 0; border-radius: 18px; padding: 18px 12px; text-align: left; cursor: pointer; background: var(--field); }
+  .add-opt .chip { margin-bottom: 10px; }
+  .add-opt b { display: block; font-size: 15px; }
+  .add-opt small { color: var(--muted); font-size: 12px; }
+  .add-opt.main { background: var(--grad); color: #fff; }
+  .add-opt.main small { color: rgba(255,255,255,.85); }
+  .add-opt.main .chip { background: rgba(255,255,255,.2); }
+
+  .photo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pick { border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); border-radius: 18px; padding: 18px 8px; text-align: center; cursor: pointer; color: var(--accent); display: block; }
+  .pick.small { padding: 12px 8px; }
+  .pick .i { font-size: 24px; display: block; }
+  .pick span { font-size: 13px; font-weight: 700; }
+  .pprev { display: flex; align-items: center; gap: 12px; }
+  .pprev img { width: 90px; height: 90px; object-fit: cover; border-radius: 14px; }
+  .photo-box { position: relative; border-radius: 18px; overflow: hidden; background: #000; touch-action: none; }
+  .photo-box canvas { width: 100%; display: block; }
+  .ocr-status { font-size: 13px; color: var(--muted); margin: 8px 2px 0; min-height: 20px; }
+  .ocr-status b { color: var(--accent); }
+  .spin { display: inline-block; vertical-align: -2px; margin-right: 8px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .mini-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .mini { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 10px; font-size: 13px; cursor: pointer; }
+
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .fields:first-child { margin-top: 0; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field.full { grid-column: span 2; }
+  .field > span { font-size: 12px; font-weight: 700; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+  .field > span em { font-style: normal; font-weight: 600; color: var(--accent); }
+  .field input, .field select { background: var(--field); border: 1.5px solid transparent; border-radius: 12px; padding: 11px 12px; width: 100%; min-width: 0; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field input.big { font-size: 22px; font-weight: 800; letter-spacing: .02em; }
+  .field .bad { border-color: var(--danger) !important; background: var(--danger-soft) !important; }
+  .err { font-size: 12px; font-weight: 600; color: var(--danger); }
+  .err:empty { display: none; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .warn-t { font-size: 12px; color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 4px 8px; }
+  .form-err { margin-top: 14px; background: var(--danger-soft); color: var(--danger); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
+  .toggle { display: flex; flex-direction: row !important; align-items: center; justify-content: space-between; background: var(--field); border-radius: 12px; padding: 10px 12px; }
+  .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; border: 1.5px solid transparent; border-radius: 14px; }
+  .chips.bad { padding: 6px; }
+  .chips label { cursor: pointer; }
+  .chips input { position: absolute; opacity: 0; pointer-events: none; }
+  .chips span { display: inline-block; background: var(--field); border-radius: 99px; padding: 7px 12px; font-size: 13px; font-weight: 600; border: 1.5px solid transparent; }
+  .chips input:checked + span { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .chips input:focus-visible + span { outline: 2px solid var(--accent); }
+  .btn { border: 0; border-radius: 14px; padding: 14px; font-weight: 700; cursor: pointer; width: 100%; background: var(--field); }
+  .btn.primary { background: var(--grad); color: #fff; box-shadow: 0 8px 18px rgba(109,93,252,.30); }
+  .btn.soft { background: var(--accent-soft); color: var(--accent); }
+  .btn.danger { color: var(--danger); background: var(--danger-soft); }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+
+  .detail-photo { width: 100%; border-radius: 18px; display: block; background: #000; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .kv div { background: var(--field); border-radius: 12px; padding: 10px 12px; min-width: 0; overflow-wrap: anywhere; }
+  .kv small { display: block; font-size: 11px; color: var(--muted); }
+  .kv b { font-size: 15px; }
+
+  .set-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .set-item:first-child { border-top: 0; }
+  .set-item p { margin: 0; font-size: 12px; color: var(--muted); }
+  .seg { display: inline-flex; background: var(--field); border-radius: 10px; padding: 3px; flex: none; }
+  .seg button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--muted); }
+  .seg button.on { background: var(--card); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }
+
+  .toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; }
+  .toast.bad { background: var(--danger); color: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div style="min-width:0">
+      <div class="hello" id="greet">Hello</div>
+      <h1><span id="vehicleName">My Activa</span><span class="plate" id="plate" hidden><i>IND</i><b></b></span></h1>
+      <div class="meta" id="vehicleMeta"></div>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- HOME -->
+  <section class="tab" id="tab-home">
+    <div class="card hero">
+      <svg viewBox="0 0 220 124" aria-hidden="true">
+        <path d="M20 112 A90 90 0 0 1 200 112" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="16" stroke-linecap="round" pathLength="100"/>
+        <path id="gaugeArc" d="M20 112 A90 90 0 0 1 200 112" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
+      </svg>
+      <div class="val" id="sAvg">–</div>
+      <div class="unit">km/l average</div>
+      <div class="pills" id="heroPills"></div>
+    </div>
+
+    <div id="alerts"></div>
+
+    <div class="card" id="insCard">
+      <h2>✨ Insights</h2>
+      <div id="insights"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="top"><span class="chip teal">🪙</span>Cost per km</div><div class="v" id="sCpk">–</div><div class="s">petrol only</div></div>
+      <div class="stat"><div class="top"><span class="chip orange">📅</span>This month</div><div class="v" id="sMonth">₹0</div><div class="s" id="sMonthN">0 fill-ups</div></div>
+      <div class="stat"><div class="top"><span class="chip blue">⛽</span>Petrol · HYD</div><div class="v" id="sPrice">–</div><div class="s" id="sPriceNote">checking…</div></div>
+      <div class="stat"><div class="top"><span class="chip pink">🛵</span>Distance</div><div class="v" id="sKm">–</div><div class="s" id="sOdo">tracked</div></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head"><h2>🔧 Service</h2><button class="link" data-go="garage">Garage →</button></div>
+      <div id="homeService"></div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head"><h2>📁 Documents</h2><button class="link" data-go="garage">Manage →</button></div>
+      <div class="docs" id="homeDocs"></div>
+    </div>
+
+    <div class="card">
+      <h2>Mileage trend</h2>
+      <canvas class="chart" id="chart" hidden></canvas>
+      <div class="empty" id="chartEmpty">The trend appears after two full-tank fill-ups.</div>
+    </div>
+
+    <div class="card">
+      <div class="sec-head"><h2>Recent fill-ups</h2><button class="link" data-go="fills">See all →</button></div>
+      <div id="recent"></div>
+    </div>
+  </section>
+
+  <!-- FILL-UPS -->
+  <section class="tab" id="tab-fills" hidden>
+    <h2 class="page-title">Fill-ups</h2>
+    <div class="stats" id="fillsSummary"></div>
+    <div class="card"><div id="fillList"></div></div>
+  </section>
+
+  <!-- GARAGE -->
+  <section class="tab" id="tab-garage" hidden>
+    <h2 class="page-title">Garage</h2>
+    <div class="card">
+      <div class="sec-head"><h2>🔧 Service reminders</h2><button class="link" id="intervalsBtn">Intervals</button></div>
+      <div id="svcReminders"></div>
+      <button class="btn soft" style="margin-top:10px" id="logServiceBtn">+ Log a service</button>
+    </div>
+    <div class="card">
+      <h2>Service history</h2>
+      <div id="svcList"></div>
+    </div>
+    <div class="card">
+      <h2>📁 Documents</h2>
+      <div id="docList"></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h2>🧾 Other expenses</h2><span class="hint" id="expTotal"></span></div>
+      <div id="expList"></div>
+      <button class="btn soft" style="margin-top:10px" id="addExpenseBtn">+ Add expense</button>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="tab" id="tab-reports" hidden>
+    <h2 class="page-title">Reports</h2>
+    <div class="card">
+      <div class="sec-head"><h2>Last 6 months</h2>
+        <div class="seg" id="monthSeg"><button data-m="spend" class="on">Spend</button><button data-m="km">Distance</button></div></div>
+      <canvas class="chart tall" id="monthChart"></canvas>
+      <div class="legend" id="monthLegend"></div>
+    </div>
+    <div class="card">
+      <h2>Total running cost</h2>
+      <div id="runCost"></div>
+    </div>
+    <div class="card">
+      <h2>Petrol price you paid</h2>
+      <canvas class="chart" id="priceChart" hidden></canvas>
+      <div class="empty" id="priceEmpty">Appears after two fill-ups.</div>
+      <div class="legend" id="priceStats"></div>
+    </div>
+    <div class="card">
+      <h2>Mileage by petrol bunk</h2>
+      <div id="bunkList"></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h2>Monthly summary</h2><select class="sel" id="sumMonth" aria-label="Month"></select></div>
+      <canvas id="sumCanvas" width="1080" height="1350"></canvas>
+      <button class="btn primary" id="shareBtn">Share summary image</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <div class="in">
+    <button data-tab="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button data-tab="fills"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M7 7h5v4H7zM15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>Fill-ups</button>
+    <button class="add" id="addBtn" aria-label="Add">+</button>
+    <button data-tab="garage"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>Garage</button>
+    <button data-tab="reports"><svg viewBox="0 0 24 24"><path d="M4 20V11M10 20V5M16 20v-8M22 20H2"/></svg>Reports</button>
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Add menu -->
+<dialog id="addMenu">
+  <div class="sheet-head"><h3>Add</h3><button class="close" data-close>✕</button></div>
+  <div class="sheet-body add-grid">
+    <button class="add-opt main" data-add="fill"><span class="chip">⛽</span><b>Fill-up</b><small>Photo of odometer</small></button>
+    <button class="add-opt" data-add="service"><span class="chip teal">🔧</span><b>Service</b><small>Oil change, repairs</small></button>
+    <button class="add-opt" data-add="expense"><span class="chip orange">🧾</span><b>Expense</b><small>Parking, wash, more</small></button>
+    <button class="add-opt" data-add="doc"><span class="chip blue">📁</span><b>Document</b><small>Insurance, PUC, RC</small></button>
+  </div>
+</dialog>
+
+<!-- Fill-up sheet -->
+<dialog id="addSheet">
+  <div class="sheet-head"><h3 id="addTitle">New fill-up</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="form" novalidate>
+    <div class="photo-pick" id="photoPick">
+      <label class="pick"><span class="i">📷</span><span>Take photo</span>
+        <input type="file" accept="image/*" capture="environment" id="camInput" hidden></label>
+      <label class="pick"><span class="i">🖼️</span><span>From gallery</span>
+        <input type="file" accept="image/*" id="galInput" hidden></label>
+    </div>
+    <div id="photoWrap" hidden>
+      <div class="photo-box"><canvas id="photoCanvas"></canvas></div>
+      <div class="ocr-status" id="ocrStatus"></div>
+      <div class="mini-row">
+        <button type="button" class="mini" id="rereadBtn">↻ Read again</button>
+        <button type="button" class="mini" id="changePhotoBtn">Change photo</button>
+        <button type="button" class="mini" id="removePhotoBtn">Remove</button>
+      </div>
+    </div>
+    <div class="fields">
+      <label class="field full"><span>Odometer (km) <em id="odoSrc"></em></span>
+        <input class="big" type="number" id="fOdo" inputmode="numeric" step="0.1" min="0" placeholder="e.g. 12780">
+        <small class="err"></small>
+        <span class="warn-t" id="odoWarn" hidden></span></label>
+      <label class="field full"><span>Date &amp; time <em id="tsSrc"></em></span>
+        <input type="datetime-local" id="fTs"><small class="err"></small></label>
+      <label class="field"><span>Price ₹/L <em id="priceSrc"></em></span>
+        <input type="number" id="fPrice" inputmode="decimal" step="0.01" min="1"><small class="err"></small></label>
+      <label class="field"><span>Amount paid ₹</span>
+        <input type="number" id="fAmount" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 500"><small class="err"></small></label>
+      <label class="field"><span>Litres <em>auto</em></span>
+        <input type="number" id="fLitres" inputmode="decimal" step="0.01" min="0.01"><small class="err"></small></label>
+      <label class="field toggle"><span style="color:var(--text);font-size:14px">Full tank</span>
+        <input type="checkbox" id="fFull" checked></label>
+      <label class="field full"><span>Petrol bunk</span>
+        <input type="text" id="fBunk" list="bunkOptions" maxlength="40" placeholder="e.g. HP Kukatpally" autocomplete="off"></label>
+      <datalist id="bunkOptions"></datalist>
+      <label class="field full"><span>Note</span>
+        <input type="text" id="fNote" maxlength="80" placeholder="Optional"></label>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px" id="saveBtn">Save fill-up</button>
+  </form>
+</dialog>
+
+<!-- Fill-up detail -->
+<dialog id="detailSheet">
+  <div class="sheet-head"><h3 id="dTitle">Fill-up</h3><button class="close" data-close>✕</button></div>
+  <div class="sheet-body">
+    <img class="detail-photo" id="dPhoto" alt="Odometer photo" hidden>
+    <div class="kv" id="dKv"></div>
+    <div class="btn-row">
+      <button class="btn" id="dEdit">Edit</button>
+      <button class="btn danger" id="dDelete">Delete</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Service sheet -->
+<dialog id="serviceSheet">
+  <div class="sheet-head"><h3 id="svTitle">Log service</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="svForm" novalidate>
+    <div class="fields">
+      <div class="field full"><span>What was done</span>
+        <div class="chips" id="svItems"></div><small class="err"></small></div>
+      <label class="field"><span>Date</span><input type="date" id="svDate"><small class="err"></small></label>
+      <label class="field"><span>Odometer (km)</span><input type="number" id="svOdo" inputmode="numeric" step="1" min="0"><small class="err"></small></label>
+      <label class="field"><span>Cost ₹</span><input type="number" id="svCost" inputmode="decimal" step="1" min="0" placeholder="0 if free"><small class="err"></small></label>
+      <label class="field"><span>Workshop</span><input type="text" id="svWhere" maxlength="40" placeholder="Optional"></label>
+      <label class="field full"><span>Note</span><input type="text" id="svNote" maxlength="100" placeholder="Optional"></label>
+      <div class="field full"><span>Bill photo</span>
+        <div class="pslot" id="svPhoto">
+          <label class="pick small"><span class="i">📎</span><span>Add bill photo</span><input type="file" accept="image/*" hidden></label>
+          <div class="pprev" hidden><img alt="Bill photo"><button type="button" class="mini">Remove</button></div>
+        </div></div>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px">Save service</button>
+    <button type="button" class="btn danger" style="margin-top:10px" id="svDelete" hidden>Delete service</button>
+  </form>
+</dialog>
+
+<!-- Expense sheet -->
+<dialog id="expenseSheet">
+  <div class="sheet-head"><h3 id="exTitle">Add expense</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="exForm" novalidate>
+    <div class="fields">
+      <div class="field full"><span>Category</span>
+        <div class="chips" id="exCat"></div><small class="err"></small></div>
+      <label class="field"><span>Amount ₹</span><input type="number" id="exAmount" inputmode="decimal" step="1" min="0"><small class="err"></small></label>
+      <label class="field"><span>Date</span><input type="date" id="exDate"><small class="err"></small></label>
+      <label class="field full"><span>Note</span><input type="text" id="exNote" maxlength="80" placeholder="Optional"></label>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px">Save expense</button>
+    <button type="button" class="btn danger" style="margin-top:10px" id="exDelete" hidden>Delete expense</button>
+  </form>
+</dialog>
+
+<!-- Document sheet -->
+<dialog id="docSheet">
+  <div class="sheet-head"><h3 id="dcTitle">Document</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="dcForm" novalidate>
+    <div class="fields">
+      <div class="field full" id="dcTypeWrap"><span>Document</span><div class="chips" id="dcType"></div><small class="err"></small></div>
+      <label class="field full"><span>Valid till</span><input type="date" id="dcExpiry"><small class="err"></small></label>
+      <label class="field"><span>Number</span><input type="text" id="dcNumber" maxlength="40" placeholder="Policy / cert no."></label>
+      <label class="field"><span>Provider</span><input type="text" id="dcProvider" maxlength="40" placeholder="Optional"></label>
+      <div class="field full"><span>Photo of document</span>
+        <div class="pslot" id="dcPhoto">
+          <label class="pick small"><span class="i">📎</span><span>Add photo</span><input type="file" accept="image/*" hidden></label>
+          <div class="pprev" hidden><img alt="Document photo"><button type="button" class="mini">Remove</button></div>
+        </div></div>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px">Save document</button>
+    <button type="button" class="btn danger" style="margin-top:10px" id="dcDelete" hidden>Remove document</button>
+  </form>
+</dialog>
+
+<!-- Vehicle profile -->
+<dialog id="profileSheet">
+  <div class="sheet-head"><h3>Vehicle profile</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="pfForm" novalidate>
+    <div class="fields">
+      <label class="field full"><span>Name</span><input type="text" id="pfName" maxlength="30"><small class="err"></small></label>
+      <label class="field"><span>Model</span><input type="text" id="pfModel" list="modelOptions" maxlength="30" placeholder="e.g. Activa 6G"></label>
+      <datalist id="modelOptions"><option value="Activa 6G"><option value="Activa 125"><option value="Activa 5G"><option value="Activa 4G"><option value="Activa 3G"><option value="Activa i"></datalist>
+      <label class="field"><span>Registration no.</span><input type="text" id="pfReg" maxlength="16" placeholder="TS 09 AB 1234" style="text-transform:uppercase"></label>
+      <label class="field"><span>Purchase date</span><input type="date" id="pfBuy"><small class="err"></small></label>
+      <label class="field"><span>Tank size (L)</span><input type="number" id="pfTank" inputmode="decimal" step="0.1"><small class="err"></small></label>
+    </div>
+    <h3 style="font-size:15px;margin:20px 0 4px">Service intervals</h3>
+    <p class="hint" style="margin:0 0 4px">Check your owner's manual. These drive the reminders.</p>
+    <div class="fields" style="margin-top:8px">
+      <label class="field"><span>General service every (km)</span><input type="number" id="pfSvcKm" inputmode="numeric" step="100"><small class="err"></small></label>
+      <label class="field"><span>…or every (months)</span><input type="number" id="pfSvcMonths" inputmode="numeric" step="1"><small class="err"></small></label>
+      <label class="field full"><span>Engine oil change every (km)</span><input type="number" id="pfOilKm" inputmode="numeric" step="100"><small class="err"></small></label>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px">Save profile</button>
+  </form>
+</dialog>
+
+<!-- Settings -->
+<dialog id="settingsSheet">
+  <div class="sheet-head"><h3>Settings</h3><button class="close" data-close>✕</button></div>
+  <div class="sheet-body">
+    <div class="set-item"><div><b>Vehicle profile</b><p id="setName"></p></div><button class="mini" id="profileBtn">Edit</button></div>
+    <div class="set-item"><div><b>Theme</b><p>Auto follows your phone.</p></div>
+      <div class="seg" id="themeSeg"><button data-t="light">Light</button><button data-t="dark">Dark</button><button data-t="auto">Auto</button></div></div>
+    <div class="set-item"><div><b>Petrol price</b><p id="setPrice"></p></div><button class="mini" id="refreshPriceBtn">Refresh</button></div>
+    <div class="set-item"><div><b>Backup</b><p>All fill-ups, services, documents and photos in one file.</p></div><button class="mini" id="exportBtn">Export</button></div>
+    <div class="set-item"><div><b>Restore</b><p>Replaces current data with a backup file.</p></div><button class="mini" id="importBtn">Import</button></div>
+    <div class="set-item"><div><b>Spreadsheet</b><p>Fill-ups as a CSV file for Excel.</p></div><button class="mini" id="csvBtn">Export CSV</button></div>
+    <div class="set-item"><div><b>Try with sample data</b><p>Random example fill-ups, services and documents. Each load is different.</p></div><button class="mini" id="sampleBtn">Load</button></div>
+    <div class="set-item"><div><b>Clear all data</b><p>Delete everything saved on this phone and start fresh.</p></div><button class="mini" id="clearBtn" style="color:var(--danger)">Clear</button></div>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <p style="font-size:12px;color:var(--muted);margin:14px 0 0">Your data and photos stay only on this phone. Export a backup now and then.</p>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

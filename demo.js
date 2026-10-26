@@ -126,14 +126,37 @@ async function loadSampleData() {
     }
   });
 
+  // Daily logs for the last two weeks; readings follow the same odometer as the fill-ups.
+  const odoAt = t => {
+    const i = fills.findIndex(f => new Date(f.ts) > t);
+    if (i === 0) return fills[0].odo;
+    const a = fills[i === -1 ? fills.length - 2 : i - 1], b = fills[i === -1 ? fills.length - 1 : i];
+    const ta = new Date(a.ts), tb = new Date(b.ts);
+    return Math.round(a.odo + (b.odo - a.odo) * (t - ta) / (tb - ta));
+  };
+  const trips = [['Office', 'Home to office, Hitech City'], ['Office', 'Office to home'], ['Shopping', 'Groceries at Ratnadeep'], ['Personal', 'Gym'],
+    ['Family', 'Dropped kids at school'], ['Personal', 'Evening ride to Durgam Cheruvu'], ['Shopping', 'Sarath City Mall'], ['Travel', 'Ride to Gandipet'],
+    ['Family', 'Visited parents'], ['Delivery', 'Courier drop at Ameerpet'], ['Other', 'Bike wash']];
+  const logs = [];
+  for (let d = 13; d >= 0; d--) {
+    const n = rint(1, 3);
+    for (let j = 0; j < n; j++) {
+      const t = new Date(now.getTime() - d * 864e5);
+      t.setHours(7 + j * 5 + rint(0, 3), rint(0, 59), 0, 0);
+      if (t > now) continue;
+      const [purpose, remarks] = pick(trips);
+      logs.push({ id: 'l' + logs.length, ts: localISO(t), odo: odoAt(t), purpose, remarks: chance(0.85) ? remarks : '' });
+    }
+  }
+
   // Pictures for every fill-up and some service bills.
   const photos = {};
   for (const f of fills) { const p = sampleOdoPhoto(f.odo); f.thumb = p.thumb; photos[f.id] = p.blob; }
   for (const s of svcs) if (s.hasPhoto) photos[s.id] = sampleBillPhoto(s).blob;
 
-  await tx(['entries', 'services', 'expenses', 'docs', 'photos'], 'readwrite', (es, ss, xs, ds, ps) => {
-    [es, ss, xs, ds, ps].forEach(s => s.clear());
-    fills.forEach(r => es.put(r)); svcs.forEach(r => ss.put(r)); exps.forEach(r => xs.put(r)); docsData.forEach(r => ds.put(r));
+  await tx(DATA_STORES, 'readwrite', (es, ss, xs, ds, ls, ps) => {
+    [es, ss, xs, ds, ls, ps].forEach(s => s.clear());
+    fills.forEach(r => es.put(r)); svcs.forEach(r => ss.put(r)); exps.forEach(r => xs.put(r)); docsData.forEach(r => ds.put(r)); logs.forEach(r => ls.put(r));
     Object.entries(photos).forEach(([id, b]) => ps.put(b, id));
   });
   const letters = () => String.fromCharCode(rint(65, 90), rint(65, 90));
@@ -141,7 +164,7 @@ async function loadSampleData() {
     reg: `TS ${String(rint(7, 36)).padStart(2, '0')} ${letters()} ${rint(1000, 9999)}`, buy: day(rint(400, 2200)),
     tank: 5.3, svcKm: 3000, svcMonths: 4, oilKm: 3000 });
   await refresh();
-  toast(`Sample data loaded: ${plural(fills.length, 'fill-up')}, ${plural(svcs.length, 'service')}, ${plural(exps.length, 'expense')} ✓`);
+  toast(`Sample data loaded: ${plural(fills.length, 'fill-up')}, ${plural(logs.length, 'daily log')}, ${plural(svcs.length, 'service')} ✓`);
 }
 
 if (new URLSearchParams(location.search).has('demo')) {

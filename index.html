@@ -180,6 +180,7 @@
   .add-opt.main { background: var(--grad); color: #fff; }
   .add-opt.main small { color: rgba(255,255,255,.85); }
   .add-opt.main .chip { background: rgba(255,255,255,.2); }
+  .add-opt.wide { grid-column: span 2; }
 
   .photo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .pick { border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); border-radius: 18px; padding: 18px 8px; text-align: center; cursor: pointer; color: var(--accent); display: block; }
@@ -240,6 +241,20 @@
   .seg button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--muted); }
   .seg button.on { background: var(--card); color: var(--accent); font-weight: 700; box-shadow: var(--shadow); }
 
+  /* Daily log */
+  .today { display: flex; align-items: center; gap: 14px; }
+  .today .km { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .today .km small { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .today .last { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .delta { font-weight: 800; color: var(--teal); white-space: nowrap; text-align: right; }
+  .delta small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+  .book-seg { display: flex; margin-top: 14px; }
+  .book-seg button { flex: 1; padding: 9px; }
+
+  footer.credit { text-align: center; margin: 28px 0 8px; font-size: 13px; color: var(--muted); }
+  footer.credit b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; letter-spacing: .02em; }
+  footer.credit small { display: block; font-size: 11px; margin-top: 2px; opacity: .8; }
+
   .toast { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; max-width: 90vw; text-align: center; }
   .toast.show { opacity: 1; }
   .toast.bad { background: var(--danger); color: #fff; }
@@ -271,6 +286,12 @@
     </div>
 
     <div id="alerts"></div>
+
+    <div class="card">
+      <div class="sec-head"><h2>📝 Daily log</h2><button class="link" id="homeLogAll">All trips →</button></div>
+      <div id="homeLog"></div>
+      <button class="btn soft" style="margin-top:12px" id="homeLogBtn">+ Add daily log</button>
+    </div>
 
     <div class="card" id="insCard">
       <h2>✨ Insights</h2>
@@ -308,9 +329,17 @@
 
   <!-- FILL-UPS -->
   <section class="tab" id="tab-fills" hidden>
-    <h2 class="page-title">Fill-ups</h2>
-    <div class="stats" id="fillsSummary"></div>
-    <div class="card"><div id="fillList"></div></div>
+    <h2 class="page-title">Logbook</h2>
+    <div class="seg book-seg" id="bookSeg"><button data-b="fills" class="on">⛽ Fill-ups</button><button data-b="logs">📝 Daily log</button></div>
+    <div id="bookFills">
+      <div class="stats" id="fillsSummary"></div>
+      <div class="card"><div id="fillList"></div></div>
+    </div>
+    <div id="bookLogs" hidden>
+      <div class="stats" id="logsSummary"></div>
+      <button class="btn primary" style="margin-top:14px" id="addLogBtn">+ Add daily log</button>
+      <div class="card"><div id="logList"></div></div>
+    </div>
   </section>
 
   <!-- GARAGE -->
@@ -360,17 +389,23 @@
       <div id="bunkList"></div>
     </div>
     <div class="card">
+      <h2>Trips by purpose · last 30 days</h2>
+      <div id="purposeList"></div>
+    </div>
+    <div class="card">
       <div class="sec-head"><h2>Monthly summary</h2><select class="sel" id="sumMonth" aria-label="Month"></select></div>
       <canvas id="sumCanvas" width="1080" height="1350"></canvas>
       <button class="btn primary" id="shareBtn">Share summary image</button>
     </div>
   </section>
+
+  <footer class="credit">Designed by <b>KarthikMinds</b><small>Activa Mileage</small></footer>
 </main>
 
 <nav class="tabbar">
   <div class="in">
     <button data-tab="home" class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
-    <button data-tab="fills"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M7 7h5v4H7zM15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>Fill-ups</button>
+    <button data-tab="fills"><svg viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v14H8a3 3 0 0 1-3-3zM18 21h1V7M9 9h5M9 13h5"/></svg>Logbook</button>
     <button class="add" id="addBtn" aria-label="Add">+</button>
     <button data-tab="garage"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>Garage</button>
     <button data-tab="reports"><svg viewBox="0 0 24 24"><path d="M4 20V11M10 20V5M16 20v-8M22 20H2"/></svg>Reports</button>
@@ -383,9 +418,10 @@
   <div class="sheet-head"><h3>Add</h3><button class="close" data-close>✕</button></div>
   <div class="sheet-body add-grid">
     <button class="add-opt main" data-add="fill"><span class="chip">⛽</span><b>Fill-up</b><small>Photo of odometer</small></button>
+    <button class="add-opt" data-add="log"><span class="chip pink">📝</span><b>Daily log</b><small>Odometer + trip reason</small></button>
     <button class="add-opt" data-add="service"><span class="chip teal">🔧</span><b>Service</b><small>Oil change, repairs</small></button>
     <button class="add-opt" data-add="expense"><span class="chip orange">🧾</span><b>Expense</b><small>Parking, wash, more</small></button>
-    <button class="add-opt" data-add="doc"><span class="chip blue">📁</span><b>Document</b><small>Insurance, PUC, RC</small></button>
+    <button class="add-opt wide" data-add="doc"><span class="chip blue">📁</span><b>Document</b><small>Insurance, PUC, RC, licence</small></button>
   </div>
 </dialog>
 
@@ -506,6 +542,29 @@
     <div class="form-err" role="alert" hidden></div>
     <button class="btn primary" style="margin-top:16px">Save document</button>
     <button type="button" class="btn danger" style="margin-top:10px" id="dcDelete" hidden>Remove document</button>
+  </form>
+</dialog>
+
+<!-- Daily log sheet -->
+<dialog id="logSheet">
+  <div class="sheet-head"><h3 id="lgTitle">Daily log</h3><button class="close" data-close>✕</button></div>
+  <form class="sheet-body" id="lgForm" novalidate>
+    <div class="fields">
+      <label class="field full"><span>Date &amp; time <em id="lgTsSrc"></em></span>
+        <input type="datetime-local" id="lgTs"><small class="err"></small></label>
+      <label class="field full"><span>Odometer reading (km) <em id="lgDelta"></em></span>
+        <input class="big" type="number" id="lgOdo" inputmode="numeric" step="0.1" min="0">
+        <small class="err"></small>
+        <span class="hint" id="lgLast"></span>
+        <span class="warn-t" id="lgWarn" hidden></span></label>
+      <div class="field full"><span>Purpose</span><div class="chips" id="lgPurpose"></div></div>
+      <label class="field full"><span>Reason / remarks</span>
+        <input type="text" id="lgRemarks" maxlength="120" placeholder="e.g. Office to Hitech City, client visit">
+        <small class="err"></small></label>
+    </div>
+    <div class="form-err" role="alert" hidden></div>
+    <button class="btn primary" style="margin-top:16px">Save log</button>
+    <button type="button" class="btn danger" style="margin-top:10px" id="lgDelete" hidden>Delete log</button>
   </form>
 </dialog>
 

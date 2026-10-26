@@ -5,6 +5,7 @@ const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tess
 const SERIES = { petrol: '#6d5dfc', service: '#14b8a6', other: '#f59e0b' };
 const SERVICE_ITEMS = ['General service', 'Engine oil', 'Air filter', 'Spark plug', 'Brake shoes', 'Tyres', 'Battery', 'Drive belt', 'Other'];
 const EXPENSE_CATS = [['Parking', '🅿️'], ['Washing', '🧽'], ['Repair', '🛠️'], ['Accessories', '🎒'], ['Insurance', '🛡️'], ['PUC', '🌿'], ['Toll', '🛣️'], ['Other', '🧾']];
+const LOG_PURPOSES = [['Office', '💼'], ['Personal', '🙂'], ['Shopping', '🛍️'], ['Family', '👨‍👩‍👧'], ['Travel', '🧭'], ['Delivery', '📦'], ['Other', '📝']];
 const DOC_TYPES = [['insurance', '🛡️', 'Insurance'], ['puc', '🌿', 'PUC certificate'], ['rc', '📄', 'RC (registration)'], ['licence', '🪪', 'Driving licence']];
 
 /* ---------- small helpers ---------- */
@@ -58,10 +59,11 @@ applyTheme();
 
 /* ---------- storage (IndexedDB) ---------- */
 let db;
-const STORES = [['entries', { keyPath: 'id' }], ['photos'], ['services', { keyPath: 'id' }], ['expenses', { keyPath: 'id' }], ['docs', { keyPath: 'id' }]];
+const STORES = [['entries', { keyPath: 'id' }], ['photos'], ['services', { keyPath: 'id' }], ['expenses', { keyPath: 'id' }], ['docs', { keyPath: 'id' }], ['logs', { keyPath: 'id' }]];
+const DATA_STORES = ['entries', 'services', 'expenses', 'docs', 'logs', 'photos'];
 function openDb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('activa-mileage', 2);
+    const r = indexedDB.open('activa-mileage', 3);
     r.onupgradeneeded = () => STORES.forEach(([n, o]) => { if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, o); });
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -106,14 +108,14 @@ function compute(list0) {
   return { list, avg: segL ? segKm / segL : null };
 }
 
-let entries = [], services = [], expenses = [], docs = [], S = null;
+let entries = [], services = [], expenses = [], docs = [], logs = [], S = null;
 function summarize() {
   const { list, avg } = compute(entries);
   const first = list[0], last = list[list.length - 1];
   const km = list.length > 1 ? last.odo - first.odo : 0;
   const petrolAfterFirst = list.slice(1).reduce((s, e) => s + e.amount, 0);
   const days = list.length > 1 ? Math.max(1, daysBetween(first.ts, last.ts)) : 0;
-  const curOdo = Math.max(0, ...list.map(e => e.odo), ...services.map(s => s.odo));
+  const curOdo = Math.max(0, ...list.map(e => e.odo), ...services.map(s => s.odo), ...logs.map(l => l.odo));
   return { list, avg, withM: list.filter(e => e.kmpl), first, last, km, petrolAfterFirst, days, curOdo };
 }
 
@@ -173,12 +175,12 @@ function docStatus(d) {
 
 /* ---------- rendering ---------- */
 async function refresh() {
-  [entries, services, expenses, docs] = await Promise.all(['entries', 'services', 'expenses', 'docs'].map(getAll));
+  [entries, services, expenses, docs, logs] = await Promise.all(['entries', 'services', 'expenses', 'docs', 'logs'].map(getAll));
   render();
 }
 function render() {
   S = summarize();
-  renderHeader(); renderHome(); renderFills(); renderGarage(); renderReports(); renderPrice();
+  renderHeader(); renderHome(); renderFills(); renderLogs(); renderGarage(); renderReports(); renderPrice();
   drawCharts();
 }
 
@@ -276,6 +278,126 @@ function renderFills() {
     el.appendChild(fillRow(e));
   });
 }
+
+/* ---------- daily log ---------- */
+// Logs in time order, each with the km ridden since the previous log.
+function logsWithDelta() {
+  const list = [...logs].sort((a, b) => a.ts.localeCompare(b.ts) || a.odo - b.odo);
+  list.forEach((l, i) => { const d = i ? l.odo - list[i - 1].odo : null; l.delta = d !== null && d >= 0 ? d : null; });
+  return list;
+}
+const purposeIcon = p => (LOG_PURPOSES.find(x => x[0] === p) || ['', '📝'])[1];
+const fmtDay = d => new Date(d + 'T00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+function logRow(l) {
+  const row = document.createElement('div');
+  row.className = 'entry';
+  row.innerHTML = `<div class="thumb">${purposeIcon(l.purpose)}</div><div class="mid"><div class="d"></div><div class="m"></div></div><div class="delta"></div>`;
+  row.querySelector('.d').textContent = [l.purpose, l.remarks].filter(Boolean).join(' · ') || 'Trip';
+  row.querySelector('.m').textContent = `${fmtTime(l.ts)} · ${Math.round(l.odo).toLocaleString('en-IN')} km`;
+  row.querySelector('.delta').innerHTML = l.delta !== null ? `+${Math.round(l.delta).toLocaleString('en-IN')}<small>km</small>` : '<small>start</small>';
+  row.addEventListener('click', () => openLog(l));
+  return row;
+}
+function renderLogs() {
+  const list = logsWithDelta(), today = todayStr(), ym = today.slice(0, 7);
+  const kmOf = arr => arr.reduce((s, l) => s + (l.delta || 0), 0);
+  const todays = list.filter(l => l.ts.startsWith(today)), month = list.filter(l => l.ts.startsWith(ym));
+
+  // Home card
+  const last = list[list.length - 1];
+  $('homeLog').innerHTML = `<div class="today"><span class="chip pink" style="width:48px;height:48px;font-size:22px">🛵</span><div>
+    <div class="km">${Math.round(kmOf(todays)).toLocaleString('en-IN')} <small>km today · ${plural(todays.length, 'log')}</small></div>
+    <div class="last"></div></div></div>`;
+  $('homeLog').querySelector('.last').textContent = last
+    ? `Last: ${fmtDate(last.ts)}, ${fmtTime(last.ts)} · ${Math.round(last.odo).toLocaleString('en-IN')} km${last.remarks ? ' · ' + last.remarks : ''}`
+    : 'Log your odometer with the reason for each trip.';
+
+  // Logbook → Daily log
+  $('logsSummary').innerHTML = `
+    <div class="stat"><div class="top"><span class="chip pink">📍</span>Today</div><div class="v">${Math.round(kmOf(todays)).toLocaleString('en-IN')} km</div><div class="s">${plural(todays.length, 'log')}</div></div>
+    <div class="stat"><div class="top"><span class="chip blue">📅</span>This month</div><div class="v">${Math.round(kmOf(month)).toLocaleString('en-IN')} km</div><div class="s">${plural(month.length, 'log')}</div></div>`;
+  const el = $('logList'); el.innerHTML = '';
+  if (!list.length) el.innerHTML = '<div class="empty">No daily logs yet. Tap <b>+ Add daily log</b> to record your odometer and the reason for the trip.</div>';
+  let cur = null;
+  [...list].reverse().forEach(l => {
+    const d = l.ts.slice(0, 10);
+    if (d !== cur) {
+      cur = d;
+      const day = list.filter(x => x.ts.startsWith(d));
+      el.insertAdjacentHTML('beforeend', `<div class="month-h"><span>${d === today ? 'Today' : fmtDay(d)}</span><span>${Math.round(kmOf(day)).toLocaleString('en-IN')} km · ${plural(day.length, 'log')}</span></div>`);
+    }
+    el.appendChild(logRow(l));
+  });
+
+  // Reports → trips by purpose (last 30 days)
+  const since = localISO(new Date(Date.now() - 30 * 864e5)).slice(0, 10), groups = {};
+  list.filter(l => l.ts.slice(0, 10) >= since && l.delta !== null).forEach(l => {
+    const k = l.purpose || 'Other';
+    (groups[k] = groups[k] || { km: 0, n: 0 }); groups[k].km += l.delta; groups[k].n++;
+  });
+  const rows = Object.entries(groups).sort((a, b) => b[1].km - a[1].km), max = rows.length ? rows[0][1].km || 1 : 1;
+  $('purposeList').innerHTML = rows.length
+    ? rows.map(([p, g]) => `<div class="bunk"><div class="row"><b>${purposeIcon(p)} ${esc(p)}</b><b>${Math.round(g.km).toLocaleString('en-IN')} km</b></div>
+        <div class="bar"><i style="width:${g.km / max * 100}%"></i></div><small>${plural(g.n, 'trip')}</small></div>`).join('')
+    : '<div class="empty">Add daily logs with a purpose to see where your km go.</div>';
+}
+
+let editLog = null;
+$('lgPurpose').innerHTML = LOG_PURPOSES.map(([p, i]) => `<label><input type="radio" name="lgPurpose" value="${p}"><span>${i} ${p}</span></label>`).join('');
+function prevLog(ts) {
+  return logsWithDelta().filter(l => l.id !== (editLog && editLog.id) && l.ts <= ts).pop() || null;
+}
+function updateLogHints() {
+  const ts = val('lgTs'), v = num('lgOdo'), prev = ts ? prevLog(ts) : null, w = $('lgWarn');
+  $('lgLast').textContent = prev ? `Previous log: ${Math.round(prev.odo).toLocaleString('en-IN')} km on ${fmtDate(prev.ts)}, ${fmtTime(prev.ts)}`
+    : S.curOdo ? `Last known reading: ${Math.round(S.curOdo).toLocaleString('en-IN')} km` : '';
+  $('lgDelta').textContent = prev && v >= prev.odo ? `+${Math.round(v - prev.odo).toLocaleString('en-IN')} km` : '';
+  w.hidden = !(prev && v > 0 && v < prev.odo);
+  if (!w.hidden) w.textContent = `Heads up: lower than the previous log (${Math.round(prev.odo).toLocaleString('en-IN')} km).`;
+}
+function openLog(l) {
+  editLog = l || null;
+  const f = $('lgForm'); f.reset(); clearErrs(f);
+  $('lgTitle').textContent = l ? 'Edit daily log' : 'Daily log';
+  $('lgDelete').hidden = !l;
+  // Actual current date & time by default; the rider can change it.
+  $('lgTs').value = l ? l.ts : localISO(new Date());
+  $('lgTsSrc').textContent = l ? '' : 'now';
+  if (l) {
+    $('lgOdo').value = l.odo; $('lgRemarks').value = l.remarks || '';
+    const r = f.querySelector(`#lgPurpose input[value="${l.purpose}"]`); if (r) r.checked = true;
+  }
+  updateLogHints();
+  $('logSheet').showModal(); $('logSheet').scrollTop = 0;
+}
+$('lgTs').addEventListener('input', () => { $('lgTsSrc').textContent = 'changed'; updateLogHints(); });
+$('lgOdo').addEventListener('input', updateLogHints);
+$('lgForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const f = $('lgForm'), purpose = f.querySelector('#lgPurpose input:checked'), errs = [];
+  if (!val('lgTs')) errs.push([$('lgTs'), 'Date and time are missing.']);
+  else if (new Date(val('lgTs')).getTime() > Date.now() + 10 * 60000) errs.push([$('lgTs'), 'Date and time cannot be in the future.']);
+  if (!val('lgOdo')) errs.push([$('lgOdo'), 'Enter the odometer reading shown on your meter.']);
+  else if (!(num('lgOdo') > 0)) errs.push([$('lgOdo'), 'Odometer reading must be more than 0.']);
+  if (!purpose && !val('lgRemarks')) errs.push([$('lgRemarks'), 'Add the reason for the trip, or pick a purpose above.']);
+  if (errs.length) return showErrs(f, errs);
+  const rec = { id: editLog ? editLog.id : newId('l'), ts: val('lgTs'), odo: num('lgOdo'), purpose: purpose ? purpose.value : '', remarks: val('lgRemarks') };
+  try { await saveRecord('logs', rec); } catch (e) { return showSaveFail(f, e); }
+  $('logSheet').close(); await refresh(); toast(editLog ? 'Log updated ✓' : 'Log saved ✓');
+});
+$('lgDelete').addEventListener('click', async () => {
+  if (!confirm('Delete this daily log?')) return;
+  try { await deleteRecord('logs', editLog.id); } catch (e) { return toast('Could not delete: ' + e.message, true); }
+  $('logSheet').close(); await refresh(); toast('Deleted');
+});
+function showBook(b) {
+  $('bookSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.b === b));
+  $('bookFills').hidden = b !== 'fills'; $('bookLogs').hidden = b !== 'logs';
+}
+$('bookSeg').addEventListener('click', e => { if (e.target.dataset.b) showBook(e.target.dataset.b); });
+$('addLogBtn').addEventListener('click', () => openLog(null));
+$('homeLogBtn').addEventListener('click', () => openLog(null));
+$('homeLogAll').addEventListener('click', () => { showBook('logs'); showTab('fills'); });
 
 function renderGarage() {
   $('svcReminders').innerHTML = serviceBars();
@@ -415,7 +537,8 @@ function drawSummary() {
     g.fillStyle = i === 1 ? '#6d5dfc' : '#1d2240'; g.font = '800 76px system-ui, sans-serif'; g.fillText(val, x, y + 90);
   });
   g.fillStyle = '#fff'; g.font = '600 32px system-ui, sans-serif'; g.globalAlpha = .9;
-  g.fillText('⛽ Activa Mileage', 80, H - 70); g.globalAlpha = 1;
+  g.fillText('⛽ Activa Mileage', 80, H - 70);
+  g.textAlign = 'right'; g.fillText('Designed by KarthikMinds', W - 80, H - 70); g.textAlign = 'left'; g.globalAlpha = 1;
 }
 
 /* ---------- charts ---------- */
@@ -1079,7 +1202,7 @@ $('addBtn').addEventListener('click', () => $('addMenu').showModal());
 $('addMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-add]'); if (!b) return;
   $('addMenu').close();
-  ({ fill: () => openAdd(null), service: () => openService(null), expense: () => openExpense(null), doc: () => openDoc(null) })[b.dataset.add]();
+  ({ fill: () => openAdd(null), log: () => openLog(null), service: () => openService(null), expense: () => openExpense(null), doc: () => openDoc(null) })[b.dataset.add]();
 });
 $('logServiceBtn').addEventListener('click', () => openService(null));
 $('addExpenseBtn').addEventListener('click', () => openExpense(null));
@@ -1104,10 +1227,10 @@ function download(name, blob) {
 }
 const blobToDataUrl = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
 $('exportBtn').addEventListener('click', async () => {
-  if (!entries.length && !services.length && !expenses.length && !docs.length) return toast('Nothing to back up yet', true);
+  if (!entries.length && !services.length && !expenses.length && !docs.length && !logs.length) return toast('Nothing to back up yet', true);
   const photos = {};
   for (const r of [...entries, ...services, ...docs]) if (r.hasPhoto) { const b = await getPhoto(r.id); if (b) photos[r.id] = await blobToDataUrl(b); }
-  const data = { app: 'activa-mileage', version: 2, profile: profile(), entries, services, expenses, docs, photos };
+  const data = { app: 'activa-mileage', version: 3, profile: profile(), entries, services, expenses, docs, logs, photos };
   download(`activa-backup-${todayStr()}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
 });
 $('csvBtn').addEventListener('click', () => {
@@ -1129,12 +1252,13 @@ $('importFile').addEventListener('change', async ev => {
   try {
     const photos = {};
     for (const [id, url] of Object.entries(data.photos || {})) photos[id] = await (await fetch(url)).blob();
-    await tx(['entries', 'services', 'expenses', 'docs', 'photos'], 'readwrite', (es, ss, xs, ds, ps) => {
-      [es, ss, xs, ds, ps].forEach(s => s.clear());
+    await tx(DATA_STORES, 'readwrite', (es, ss, xs, ds, ls, ps) => {
+      [es, ss, xs, ds, ls, ps].forEach(s => s.clear());
       data.entries.forEach(r => es.put(r));
       (data.services || []).forEach(r => ss.put(r));
       (data.expenses || []).forEach(r => xs.put(r));
       (data.docs || []).forEach(r => ds.put(r));
+      (data.logs || []).forEach(r => ls.put(r));
       Object.entries(photos).forEach(([id, b]) => ps.put(b, id));
     });
   } catch (e) { return toast('Restore failed: ' + e.message, true); }
@@ -1159,8 +1283,8 @@ $('sampleBtn').addEventListener('click', async () => {
   finally { btn.disabled = false; btn.textContent = 'Load'; }
 });
 $('clearBtn').addEventListener('click', async () => {
-  if (!confirm('Delete ALL fill-ups, services, expenses, documents and photos on this phone?\n\nThis cannot be undone.')) return;
-  try { await tx(['entries', 'services', 'expenses', 'docs', 'photos'], 'readwrite', (...stores) => { stores.forEach(s => s.clear()); }); }
+  if (!confirm('Delete ALL fill-ups, daily logs, services, expenses, documents and photos on this phone?\n\nThis cannot be undone.')) return;
+  try { await tx(DATA_STORES, 'readwrite', (...stores) => { stores.forEach(s => s.clear()); }); }
   catch (e) { return toast('Could not clear: ' + e.message, true); }
   settings.set('profile', {});
   $('settingsSheet').close(); await refresh(); showTab('home'); toast('All data cleared');

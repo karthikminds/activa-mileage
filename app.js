@@ -119,8 +119,35 @@ function summarize() {
   return { list, avg, withM: list.filter(e => e.kmpl), first, last, km, petrolAfterFirst, days, curOdo };
 }
 
+// Km ridden since the last fill-up and an estimate of petrol left. Starts from the last
+// full tank, adds each later fill-up and burns (km ÷ average mileage) in between.
+function fuelState() {
+  if (!S.list.length) return null;
+  const list = S.list, last = list[list.length - 1], tank = profile().tank;
+  const km = Math.max(0, S.curOdo - last.odo);
+  let left = null;
+  let i = list.length - 1;
+  while (i > 0 && !list[i].full) i--;
+  if (S.avg && list[i].full) {
+    let lvl = tank;
+    for (let j = i + 1; j < list.length; j++) lvl = Math.min(tank, Math.max(0, lvl - (list[j].odo - list[j - 1].odo) / S.avg) + list[j].litres);
+    left = Math.max(0, lvl - km / S.avg);
+  }
+  return { last, km, left, pct: left === null ? null : left / tank, rideKm: left === null ? null : left * S.avg };
+}
+
 function insights() {
-  const out = [], p = profile(), m = S.withM.map(e => e.kmpl);
+  const out = [], p = profile(), m = S.withM.map(e => e.kmpl), f = fuelState();
+  if (f) {
+    const title = `${Math.round(f.km).toLocaleString('en-IN')} km since last fill-up (${fmtDate(f.last.ts).replace(/ \d{4}$/, '')})`;
+    if (f.left === null) out.push(['⛽', 'teal', title, 'Petrol left shows up once your mileage is known (after two full-tank fill-ups).']);
+    else {
+      const lv = f.pct > 0.35 ? 'ok' : f.pct > 0.15 ? 'warn' : 'danger';
+      const sub = `≈ ${f.left.toFixed(1)} L left · about ${Math.round(f.rideKm)} km more to ride` + (lv === 'danger' ? ' · fill up soon' : '');
+      out.push(['⛽', lv === 'danger' ? 'danger-c' : 'teal', title, sub,
+        `<div class="bar" style="margin:6px 0 2px"><i class="bg-${lv}" style="width:${Math.max(3, f.pct * 100)}%"></i></div><small>Tank about ${Math.round(f.pct * 100)}% full</small>`]);
+    }
+  }
   if (S.avg) out.push(['🛣️', 'blue', `≈ ${Math.round(S.avg * p.tank)} km on a full tank`, `${p.tank} L tank × ${S.avg.toFixed(1)} km/l average`]);
   if (m.length >= 4) {
     const recent = avgOf(m.slice(-2)), before = avgOf(m.slice(0, -2)), ch = (recent - before) / before;
@@ -200,10 +227,11 @@ function renderHeader() {
 function renderHome() {
   $('sAvg').textContent = S.avg ? S.avg.toFixed(1) : '–';
   $('gaugeArc').setAttribute('stroke-dasharray', `${S.avg ? Math.min(S.avg / 70, 1) * 100 : 0} 100`);
-  const last = S.withM[S.withM.length - 1];
+  const last = S.withM[S.withM.length - 1], f = fuelState();
+  const sinceFill = f ? `<span>⛽ <b>${Math.round(f.km).toLocaleString('en-IN')} km</b> since fill${f.left !== null ? ` · ≈${Math.round(f.rideKm)} km left` : ''}</span>` : '';
   $('heroPills').innerHTML = S.avg
-    ? `<span>🛣️ Range ≈ <b>${Math.round(S.avg * profile().tank)} km</b></span><span>Last: <b>${last.kmpl.toFixed(1)} km/l</b></span>`
-    : '<span>Add two full-tank fill-ups to see mileage</span>';
+    ? `${sinceFill}<span>🛣️ Range ≈ <b>${Math.round(S.avg * profile().tank)} km</b></span><span>Last: <b>${last.kmpl.toFixed(1)} km/l</b></span>`
+    : sinceFill + '<span>Add two full-tank fill-ups to see mileage</span>';
 
   // Alerts: documents and services that need attention.
   const alerts = [];
@@ -217,7 +245,7 @@ function renderHome() {
 
   const ins = insights();
   $('insights').innerHTML = ins.length
-    ? ins.map(([icon, cls, t, s]) => `<div class="ins"><span class="chip ${cls}">${icon}</span><div><b>${esc(t)}</b><small>${esc(s)}</small></div></div>`).join('')
+    ? ins.map(([icon, cls, t, s, extra]) => `<div class="ins"><span class="chip ${cls}">${icon}</span><div style="flex:1"><b>${esc(t)}</b><small>${esc(s)}</small>${extra || ''}</div></div>`).join('')
     : '<div class="empty">Add a few fill-ups to unlock insights about your riding.</div>';
 
   $('sCpk').textContent = S.km > 0 ? inr(S.petrolAfterFirst / S.km, 2) : '–';
@@ -537,8 +565,7 @@ function drawSummary() {
     g.fillStyle = i === 1 ? '#6d5dfc' : '#1d2240'; g.font = '800 76px system-ui, sans-serif'; g.fillText(val, x, y + 90);
   });
   g.fillStyle = '#fff'; g.font = '600 32px system-ui, sans-serif'; g.globalAlpha = .9;
-  g.fillText('⛽ Activa Mileage', 80, H - 70);
-  g.textAlign = 'right'; g.fillText('Designed by KarthikMinds', W - 80, H - 70); g.textAlign = 'left'; g.globalAlpha = 1;
+  g.fillText('Designed by KarthikMinds', 80, H - 70); g.globalAlpha = 1;
 }
 
 /* ---------- charts ---------- */

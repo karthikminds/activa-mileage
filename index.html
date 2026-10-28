@@ -321,6 +321,14 @@
     </div>
 
     <div class="card">
+      <div class="sec-head"><h2>Daily km · from logs</h2>
+        <div class="seg" id="logSeg"><button data-d="14" class="on">14 days</button><button data-d="30">30 days</button></div></div>
+      <canvas class="chart" id="logChart" hidden></canvas>
+      <div class="empty" id="logChartEmpty">Add daily logs to see how many km you ride each day.</div>
+      <div class="legend" id="logChartStats"></div>
+    </div>
+
+    <div class="card">
       <div class="sec-head"><h2>Recent fill-ups</h2><button class="link" data-go="fills">See all →</button></div>
       <div id="recent"></div>
     </div>

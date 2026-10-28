@@ -609,9 +609,11 @@ function lineChart(c, pts, fmt) {
     g.lineWidth = 2.5; g.strokeStyle = '#a855f7'; g.stroke();
   });
 }
-function barChart(c, labels, series, fmt) {
+// opts.every: draw every Nth label; opts.values: false hides the totals above bars.
+function barChart(c, labels, series, fmt, opts = {}) {
   const { g, w, h } = setupCanvas(c);
   if (!w) return;
+  const every = opts.every || 1, showValues = opts.values !== false;
   const n = labels.length, totals = labels.map((_, i) => series.reduce((s, se) => s + se.values[i], 0));
   const max = Math.max(1, ...totals) * 1.18, pad = { l: 6, r: 6, t: 20, b: 24 }, bw = (w - pad.l - pad.r) / n, ih = h - pad.t - pad.b;
   g.strokeStyle = css('--line'); g.beginPath(); g.moveTo(pad.l, h - pad.b); g.lineTo(w - pad.r, h - pad.b); g.stroke();
@@ -623,14 +625,43 @@ function barChart(c, labels, series, fmt) {
       let yy = h - pad.b;
       series.forEach(se => { const bh = ih * se.values[i] / max; g.fillStyle = se.color; g.fillRect(x, yy - bh, bwid, bh); yy -= bh; });
       g.restore();
-      g.fillStyle = css('--text'); g.font = '700 11px system-ui, sans-serif';
-      g.fillText(fmt(totals[i]), x + bwid / 2, h - pad.b - th - 6);
+      if (showValues) {
+        g.fillStyle = css('--text'); g.font = '700 11px system-ui, sans-serif';
+        g.fillText(fmt(totals[i]), x + bwid / 2, h - pad.b - th - 6);
+      }
     }
-    g.fillStyle = css('--muted'); g.font = '11px system-ui, sans-serif';
-    g.fillText(lab, x + bwid / 2, h - 7);
+    if ((n - 1 - i) % every === 0) {
+      g.fillStyle = css('--muted'); g.font = '11px system-ui, sans-serif';
+      g.fillText(lab, x + bwid / 2, h - 7);
+    }
   });
   g.textAlign = 'left';
 }
+// Home: km logged per day (sum of each log's km since the previous log).
+let logDays = 14;
+function drawLogChart() {
+  const list = logsWithDelta(), days = [];
+  for (let i = logDays - 1; i >= 0; i--) days.push(localISO(new Date(Date.now() - i * 864e5)).slice(0, 10));
+  const km = days.map(d => list.filter(l => l.ts.startsWith(d)).reduce((s, l) => s + (l.delta || 0), 0));
+  const show = list.length >= 2 && km.some(v => v > 0);
+  $('logChart').hidden = !show; $('logChartEmpty').hidden = show;
+  $('logChartStats').innerHTML = '';
+  if (!show) return;
+  const total = km.reduce((s, v) => s + v, 0), rideDays = km.filter(v => v > 0).length, best = Math.max(...km);
+  const labels = days.map(d => String(+d.slice(8)));
+  barChart($('logChart'), labels, [{ values: km, color: '#14b8a6' }], v => String(Math.round(v)), { every: logDays > 14 ? 5 : 1, values: logDays <= 14 });
+  $('logChartStats').innerHTML = `<span>Total <b>${Math.round(total).toLocaleString('en-IN')} km</b></span>`
+    + `<span>Avg <b>${Math.round(total / logDays)} km/day</b></span>`
+    + `<span>Best day <b>${Math.round(best)} km</b> (${fmtDate(days[km.indexOf(best)]).replace(/ \d{4}$/, '')})</span>`
+    + `<span>Rode on <b>${rideDays}/${logDays}</b> days</span>`;
+}
+$('logSeg').addEventListener('click', e => {
+  const d = +e.target.dataset.d; if (!d) return;
+  logDays = d;
+  $('logSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.d === d));
+  drawLogChart();
+});
+
 let currentTab = 'home';
 function drawCharts() {
   if (!S) return;
@@ -638,6 +669,7 @@ function drawCharts() {
     const show = S.withM.length >= 2;
     $('chart').hidden = !show; $('chartEmpty').hidden = show;
     if (show) lineChart($('chart'), S.withM.map(e => ({ ts: e.ts, v: e.kmpl })), v => v.toFixed(0));
+    drawLogChart();
   }
   if (currentTab === 'reports') {
     const keys = lastMonths(6), md = monthData(keys), labels = keys.map(k => monthName(k));

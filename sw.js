@@ -1,7 +1,7 @@
 // Offline support: app files are served from cache and refreshed in the background.
 // The OCR library and its language data are cached after the first download.
-const CACHE = 'activa-mileage-v7';
-const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'milemate-v8';
+const SHELL = ['./', 'index.html', 'app.js', 'ask.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

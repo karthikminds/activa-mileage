@@ -43,7 +43,7 @@ const settings = (() => {
   };
 })();
 const profile = () => Object.assign({
-  name: settings.get('vehicle', 'My Activa'), model: '', reg: '', buy: '',
+  name: settings.get('vehicle', 'My Ride'), model: '', reg: '', buy: '',
   tank: 5.3, svcKm: 3000, svcMonths: 4, oilKm: 3000
 }, settings.get('profile', {}));
 
@@ -213,7 +213,7 @@ function render() {
 
 function renderHeader() {
   const p = profile(), h = new Date().getHours();
-  $('greet').textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  $('greet').innerHTML = '<b class="brand">MileMate</b> · ' + (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening');
   $('vehicleName').textContent = p.name;
   $('plate').hidden = !p.reg; $('plate').querySelector('b').textContent = p.reg;
   let age = '';
@@ -546,7 +546,7 @@ function drawSummary() {
   g.beginPath(); g.arc(W - 80, 120, 260, 0, 7); g.fill();
   g.beginPath(); g.arc(60, H - 60, 200, 0, 7); g.fill();
   g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
-  g.font = '600 34px system-ui, sans-serif'; g.globalAlpha = .85; g.fillText('MONTHLY RIDE REPORT', 80, 140); g.globalAlpha = 1;
+  g.font = '600 34px system-ui, sans-serif'; g.globalAlpha = .85; g.fillText('MILEMATE · MONTHLY RIDE REPORT', 80, 140); g.globalAlpha = 1;
   g.font = '800 92px system-ui, sans-serif'; g.fillText(p.name, 80, 250);
   g.font = '600 48px system-ui, sans-serif'; g.fillText(monthName(k, true) + (p.reg ? '  ·  ' + p.reg : ''), 80, 330);
   // white card with stats
@@ -704,7 +704,7 @@ $('monthSeg').addEventListener('click', e => {
 });
 $('sumMonth').addEventListener('change', drawSummary);
 $('shareBtn').addEventListener('click', () => {
-  const k = $('sumMonth').value, name = `activa-report-${k}.png`;
+  const k = $('sumMonth').value, name = `milemate-report-${k}.png`;
   $('sumCanvas').toBlob(async blob => {
     const file = new File([blob], name, { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -772,7 +772,8 @@ function showSaveFail(form, e) {
 document.querySelectorAll('form').forEach(f => ['input', 'change'].forEach(ev => f.addEventListener(ev, e => {
   const field = e.target.closest('.field');
   if (field) field.querySelectorAll('.bad').forEach(clearFieldErr);
-  if (!f.querySelector('.bad')) f.querySelector('.form-err').hidden = true;
+  const fe = f.querySelector('.form-err');
+  if (fe && !f.querySelector('.bad')) fe.hidden = true;
 })));
 const val = id => $(id).value.trim(), num = id => parseFloat(val(id));
 
@@ -1290,7 +1291,7 @@ $('exportBtn').addEventListener('click', async () => {
   const photos = {};
   for (const r of [...entries, ...services, ...docs]) if (r.hasPhoto) { const b = await getPhoto(r.id); if (b) photos[r.id] = await blobToDataUrl(b); }
   const data = { app: 'activa-mileage', version: 3, profile: profile(), entries, services, expenses, docs, logs, photos };
-  download(`activa-backup-${todayStr()}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  download(`milemate-backup-${todayStr()}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
 });
 $('csvBtn').addEventListener('click', () => {
   if (!entries.length) return toast('No fill-ups to export yet', true);
@@ -1298,7 +1299,7 @@ $('csvBtn').addEventListener('click', () => {
   const rows = [['Date', 'Time', 'Odometer', 'Litres', 'Amount', 'Price per L', 'Full tank', 'Mileage km/l', 'Petrol bunk', 'Note']];
   S.list.forEach(e => rows.push([e.ts.slice(0, 10), e.ts.slice(11), e.odo, e.litres, e.amount, e.price || '',
     e.full ? 'yes' : 'no', e.kmpl ? e.kmpl.toFixed(2) : '', q(e.bunk || ''), q(e.note || '')]));
-  download(`activa-mileage-${todayStr()}.csv`, new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }));
+  download(`milemate-fillups-${todayStr()}.csv`, new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }));
 });
 $('importBtn').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', async ev => {
